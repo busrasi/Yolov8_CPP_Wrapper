@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <random>
+#include <chrono>
 
 
 
@@ -16,6 +17,7 @@ YOLO_V8::YOLO_V8(MODEL_LIBS mLib, MEMORY_TYPE memType, std::string &mPath) {
 
 void YOLO_V8::loadModel() {
 	if (modelType == CPP) {
+        auto start = std::chrono::high_resolution_clock::now();
         net = cv::dnn::readNetFromONNX(modelPath);
         if (memoryType == GPU)
         {
@@ -29,9 +31,12 @@ void YOLO_V8::loadModel() {
             net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
             net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
         }
+        auto end = std::chrono::high_resolution_clock::now(); // End timing
+        std::chrono::duration<double, std::milli> elapsed = end - start; // Calculate elapsed time in milliseconds
+        std::cout << "Model loading and setting backend took " << elapsed.count() << " ms\n";
 	}
     else if (modelType == LIBTORCH) {
-
+        auto start = std::chrono::high_resolution_clock::now();
         yolo_model = torch::jit::load(modelPath);
         yolo_model.eval();
 
@@ -44,6 +49,9 @@ void YOLO_V8::loadModel() {
         else {
             std::cerr << "Requested device type does not match available resources or is not supported.\n";
         }
+        auto end = std::chrono::high_resolution_clock::now(); // End timing
+        std::chrono::duration<double, std::milli> elapsed = end - start; // Calculate elapsed time in milliseconds
+        std::cout << "Model loading and setting backend took " << elapsed.count() << " ms\n";
     }
 }
 
@@ -241,8 +249,9 @@ torch::Tensor YOLO_V8::nms(const torch::Tensor& bboxes, const torch::Tensor& sco
 
 std::vector<Detection> YOLO_V8::inference(const cv::Mat& frame)
 {
-    if (modelType == CPP) {
-       // cv::Mat frame = cv::imread(imgPath);
+    
+    if (modelType == CPP) {  
+        auto start = std::chrono::high_resolution_clock::now();
         cv::Mat modelInput = frame;
         if (memoryType == GPU || memoryType == CPU)
         {
@@ -327,11 +336,14 @@ std::vector<Detection> YOLO_V8::inference(const cv::Mat& frame)
 
                 detections.push_back(result);
             }
-
+            auto end = std::chrono::high_resolution_clock::now(); // End timing
+            std::chrono::duration<double, std::milli> elapsed = end - start; // Calculate elapsed time in milliseconds
+            std::cout << "Inference and setting backend took " << elapsed.count() << " ms\n";
             return detections;
         }
     }
     else if (modelType == LIBTORCH) {
+        auto start = std::chrono::high_resolution_clock::now();
         cv::Mat input_image;
         cv::Mat image = frame;
         letterbox(image, input_image, { 1280, 1280 });
@@ -379,12 +391,16 @@ std::vector<Detection> YOLO_V8::inference(const cv::Mat& frame)
 
             detections.push_back(result);
         }
+        auto end = std::chrono::high_resolution_clock::now(); // End timing
+        std::chrono::duration<double, std::milli> elapsed = end - start; // Calculate elapsed time in milliseconds
+        std::cout << "Inference and setting backend took " << elapsed.count() << " ms\n";
         return detections;
     }
 }
 
 void YOLO_V8::inferenceV2(std::string imgPath)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     cv::Mat frame = cv::imread(imgPath);
 
     std::vector<Detection> output = inference(frame);
@@ -412,7 +428,9 @@ void YOLO_V8::inferenceV2(std::string imgPath)
         cv::putText(frame, classString, textOrg, cv::FONT_HERSHEY_DUPLEX, fontScale, cv::Scalar(0, 0, 0), 1); // Thickness of text set to 1
     }
     // Inference ends here...
-
+    auto end = std::chrono::high_resolution_clock::now(); // End timing
+    std::chrono::duration<double, std::milli> elapsed = end - start; // Calculate elapsed time in milliseconds
+    std::cout << "Inferencev2 and setting backend took " << elapsed.count() << " ms\n";
     // This is only for preview purposes
     float scale = 0.8;
     cv::resize(frame, frame, cv::Size(frame.cols * scale, frame.rows * scale));
